@@ -106,7 +106,20 @@ app.use("/api/payroll", payrollRoutes);
 app.use("/api/notifications", notificationRoutes);
 
 app.get("/", (req, res) => {
-  res.send("FactoHR Enterprise API Running with Security, Geofencing & RBAC...");
+  res.json({
+    status: "online",
+    service: "FactoHR Enterprise API",
+    version: "1.0.1",
+    message: "Running with Security, Geofencing, RBAC & Auto-Seed",
+  });
+});
+
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "ok",
+    version: "1.0.1",
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // Error handling middleware
