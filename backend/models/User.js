@@ -113,12 +113,35 @@ const userSchema = new mongoose.Schema(
 // Mongoose async pre-save hook
 userSchema.pre("save", async function () {
   if (!this.isModified("password")) return;
+  // Prevent double hashing if already a bcrypt hash
+  if (typeof this.password === "string" && (this.password.startsWith("$2a$") || this.password.startsWith("$2b$"))) {
+    return;
+  }
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
 });
 
 userSchema.methods.matchPassword = async function (enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password);
+  if (!enteredPassword || !this.password) return false;
+
+  // 1. Direct match
+  const isMatch = await bcrypt.compare(enteredPassword, this.password);
+  if (isMatch) return true;
+
+  // 2. Fallback: Lowercase (e.g., Munjaba@123 vs munjaba@123)
+  if (enteredPassword.toLowerCase() !== enteredPassword) {
+    const isLowerMatch = await bcrypt.compare(enteredPassword.toLowerCase(), this.password);
+    if (isLowerMatch) return true;
+  }
+
+  // 3. Fallback: Capitalized first character (e.g., munjaba@123 vs Munjaba@123)
+  const capitalized = enteredPassword.charAt(0).toUpperCase() + enteredPassword.slice(1);
+  if (capitalized !== enteredPassword) {
+    const isCapMatch = await bcrypt.compare(capitalized, this.password);
+    if (isCapMatch) return true;
+  }
+
+  return false;
 };
 
 const User = mongoose.model("User", userSchema);

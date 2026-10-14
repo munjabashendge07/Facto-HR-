@@ -4,6 +4,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import mongoSanitize from "express-mongo-sanitize";
 import connectDB from "./config/db.js";
+import { seedDefaultUsers } from "./utils/seedDefaults.js";
 
 import authRoutes from "./routes/authRoutes.js";
 import employeeRoutes from "./routes/employeeRoutes.js";
@@ -17,7 +18,14 @@ import notificationRoutes from "./routes/notificationRoutes.js";
 
 dotenv.config();
 
-connectDB();
+// Connect to DB and ensure Admin & Employee accounts are initialized safely
+connectDB()
+  .then(async () => {
+    await seedDefaultUsers();
+  })
+  .catch((err) => {
+    console.error("Database initialization error:", err);
+  });
 
 const app = express();
 
@@ -57,18 +65,32 @@ const allowedOrigins = [
   "http://127.0.0.1:5173",
   "http://localhost:3000",
   "http://127.0.0.1:3000",
+  "https://facto-hr-chi.vercel.app",
 ];
+
+if (process.env.CLIENT_URL) {
+  allowedOrigins.push(process.env.CLIENT_URL.trim());
+}
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (!origin) return callback(null, true);
+
+      const isAllowed =
+        allowedOrigins.includes(origin) ||
+        origin.endsWith(".vercel.app") ||
+        origin.includes("localhost");
+
+      if (isAllowed) {
         callback(null, true);
       } else {
         callback(null, true);
       }
     },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   })
 );
 

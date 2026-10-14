@@ -13,17 +13,20 @@ export const loginUser = async (req, res) => {
       return res.status(400).json({ message: "Please provide email and password" });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const cleanEmail = email.trim().toLowerCase();
+    const user = await User.findOne({ email: cleanEmail });
 
     if (user && (await user.matchPassword(password))) {
-      const token = generateTokenAndSetCookie(res, user._id);
+      const token = generateTokenAndSetCookie(res, user);
 
       const userObj = user.toObject();
       delete userObj.password;
 
       return res.json({
-        ...userObj,
+        success: true,
         token,
+        user: userObj,
+        ...userObj,
       });
     } else {
       return res.status(401).json({ message: "Invalid email or password" });
@@ -37,11 +40,14 @@ export const loginUser = async (req, res) => {
 // @route   POST /api/auth/logout
 // @access  Public
 export const logoutUser = (req, res) => {
+  const isProduction = process.env.NODE_ENV === "production";
   res.cookie("token", "", {
     httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
     expires: new Date(0),
   });
-  return res.json({ message: "Logged out successfully" });
+  return res.json({ success: true, message: "Logged out successfully" });
 };
 
 // @desc    Get current user profile
